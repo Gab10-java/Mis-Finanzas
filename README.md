@@ -46,7 +46,7 @@ Debes crear un archivo `.env` en la raíz del proyecto. Las variables más impor
 | `GOOGLE_CREDENTIALS_FILE` | Ruta de tu archivo `credenciales.json` (cuenta de servicio de Google) para que el bot pueda clonar y escribir en los Sheets. |
 | `COOKIE_SECURE` | Cambiar a `true` cuando se publique el proyecto en internet (HTTPS). |
 
-⚠️ **Seguridad:** Los archivos `.env` y `credenciales.json` son estrictamente secretos. **Nunca** los subas a GitHub (ya están protegidos en el archivo `.gitignore` de este repositorio).
+⚠️ **Seguridad:** Los archivos `.env` y `credenciales.json` son estrictamente secretos. 
 
 ---
 
@@ -61,7 +61,7 @@ El sistema cuenta con las siguientes secciones:
 - 📈 **Informes:** Gráficos de tendencias y comparaciones de meses anteriores.
 - ⚙️ **Ajustes:** Personalización, alertas y sistema de copias de seguridad.
 
-> *Nota: Todos los cálculos y asistentes en pantalla utilizan reglas fijas basadas estrictamente en tus datos; no se envía información a servicios de IA externos.*
+> *Nota: Todos los cálculos y asistentes en pantalla utilizan reglas fijas basadas estrictamente en tus datos; no se envía información a servicios de IA externos (proximo).*
 
 ---
 
