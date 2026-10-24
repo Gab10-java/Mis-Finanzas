@@ -1,8 +1,3 @@
-"""Configuración centralizada: TODAS las variables salen de .env / entorno.
-
-pydantic-settings valida los tipos al arrancar: si falta MONGO_URL o GOOGLE_CLIENT_ID
-la app se detiene con un mensaje claro, en vez de conectarse a "localhost" por error.
-"""
 import secrets
 from functools import lru_cache
 from pathlib import Path

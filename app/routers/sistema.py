@@ -1,4 +1,3 @@
-"""Endpoints de infraestructura: salud del servicio y configuración pública para el frontend."""
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status

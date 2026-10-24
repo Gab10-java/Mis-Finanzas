@@ -3,7 +3,7 @@ from .servicios.finanzas import a_centavos
 
 
 def migrar_centavos(col, aplicar: bool = False) -> dict:
-    """Añade `monto_centavos` a los movimientos que no lo tienen. `col` es una colección SÍNCRONA de pymongo. Es idempotente."""
+    """Añade `monto_centavos` a los movimientos que no lo tienen. `col` es una colección SÍNCRONA de pymongo."""
     pendientes = list(col.find({"monto_centavos": {"$exists": False}}, {"monto": 1}))
     if aplicar:
         for d in pendientes:

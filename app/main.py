@@ -1,4 +1,3 @@
-"""Punto de entrada. Ejecutar con:  uvicorn app.main:app --reload"""
 import logging
 from contextlib import asynccontextmanager
 

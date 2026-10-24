@@ -1,4 +1,3 @@
-"""Fase 2: cuentas, transferencias, metas de ahorro y "dinero disponible para gastar"."""
 import csv
 import io
 import json
