@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi Billetera</title>
+<meta name="description" content="Controla tus ingresos, gastos y ahorros en soles.">
+<meta name="theme-color" content="#071827">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="ico/icon-192.png">
+<link rel="apple-touch-icon" href="ico/icon-192.png">
+<link rel="stylesheet" href="style.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+<script type="module" src="app.js"></script>
+<script type="module" src="planificacion.js"></script>
+<script type="module" src="navegacion.js"></script>
+</head>
+<body>
+<main id="login" class="login">
+  <section class="billete" aria-labelledby="t-login">
+    <h1 id="t-login">Mi Billetera</h1>
+    <p>Tu plata, a la vista. Entra con Google para ver tus movimientos.</p>
+    <div id="g-btn"></div>
+    <p id="login-msg" role="status"></p>
+  </section>
+</main>
+
+<div id="app" class="app" hidden>
+  <aside class="lateral">
+    <strong class="marca">Mi Billetera</strong>
+    <nav id="menu" aria-label="Secciones">
+        <a href="#/inicio" data-ir="inicio"><span class="ic" aria-hidden="true">🏠</span><span>Inicio</span></a>
+        <a href="#/movimientos" data-ir="movimientos"><span class="ic" aria-hidden="true">🧾</span><span>Movimientos</span></a>
+        <a href="#/presupuestos" data-ir="presupuestos"><span class="ic" aria-hidden="true">📊</span><span>Presupuestos</span></a>
+        <a href="#/metas" data-ir="metas"><span class="ic" aria-hidden="true">🎯</span><span>Metas</span></a>
+        <a href="#/pagos" data-ir="pagos"><span class="ic" aria-hidden="true">📅</span><span>Pagos</span></a>
+        <a href="#/cuentas" data-ir="cuentas"><span class="ic" aria-hidden="true">👛</span><span>Cuentas</span></a>
+        <a href="#/deudas" data-ir="deudas"><span class="ic" aria-hidden="true">💳</span><span>Deudas</span></a>
+        <a href="#/informes" data-ir="informes"><span class="ic" aria-hidden="true">📈</span><span>Informes</span></a>
+        <a href="#/config" data-ir="config"><span class="ic" aria-hidden="true">⚙️</span><span>Ajustes</span></a>
+    </nav>
+  </aside>
+  <div class="principal">
+    <header class="barra">
+      <div class="saludo-bloque"><h1 id="saludo">Hola</h1><p id="fecha-hoy"></p></div>
+      <label class="buscar-global"><span class="sr">Buscar movimientos</span><input type="search" id="buscar-global" placeholder="Buscar movimientos…" maxlength="50"></label>
+      <button id="tema" class="icon-btn" aria-label="Cambiar entre tema claro y oscuro">🌙</button>
+      <button id="salir" class="icon-btn" aria-label="Cerrar sesión">🚪</button>
+    </header>
+    <p id="pendientes" class="pendientes" role="status" hidden></p>
+    <main id="contenido" class="contenido">
+    <section class="periodo" data-vista="inicio movimientos informes" aria-label="Periodo de análisis">
+      <label>Periodo
+        <select id="rango"><option value="mes">Mes</option><option value="7d">Últimos 7 días</option><option value="3m">Últimos 3 meses</option><option value="6m">Últimos 6 meses</option><option value="custom">Personalizado</option></select>
+      </label>
+      <div class="meses" role="group" aria-label="Mes">
+        <button id="mes-ant" class="icon-btn" aria-label="Mes anterior">‹</button>
+        <button id="mes-txt" class="mes-txt" aria-label="Volver al periodo actual"></button>
+        <button id="mes-sig" class="icon-btn" aria-label="Mes siguiente">›</button>
+      </div>
+      <div id="rango-custom" class="rango-custom" hidden>
+        <label>Desde <input type="date" id="rango-desde"></label>
+        <label>Hasta <input type="date" id="rango-hasta"></label>
+      </div>
+      <label class="dia-corte">Mi mes empieza el día <input id="dia" type="number" min="1" max="28" inputmode="numeric"></label>
+      <small class="nota">Dinero disponible, presupuestos y asistente siempre usan tu mes.</small>
+    </section>
+
+    <section data-vista="inicio" class="billete" aria-labelledby="saldo-lbl">
+      <p id="saldo-lbl" class="rotulo">Disponible</p>
+      <output id="saldo" class="saldo" aria-live="off">S/ 0.00</output><span id="saldo-sr" class="sr" aria-live="polite"></span>
+      <p id="resultado" class="resultado"></p>
+      <p id="ahorrado" class="resultado"></p>
+      <details class="ayuda"><summary>¿Qué es "Disponible"?</summary><p>Tus ingresos menos gastos y ahorros de todos los meses, hasta el cierre del mes elegido. Es lo que aún puedes gastar.</p></details>
+      <dl class="cifras">
+        <div><dt>Ingresos</dt><dd id="s-ing">S/ 0.00</dd></div>
+        <div><dt>Gastos</dt><dd id="s-gas">S/ 0.00</dd></div>
+        <div><dt>Ahorros</dt><dd id="s-aho">S/ 0.00</dd></div>
+      </dl>
+      <div id="meter" class="meter" role="img" aria-labelledby="meter-txt"><span id="meter-fill"></span></div>
+      <p id="meter-txt" class="meter-txt"></p>
+    </section>
+    <section class="filtros" data-vista="movimientos" aria-label="Búsqueda">
+      <label class="buscar">Buscar <input type="search" id="q" placeholder="Yape, cine, Rappi, #viaje…" maxlength="50"></label>
+    </section>
+    <div data-vista="movimientos" id="chips" class="chips" role="group" aria-label="Filtrar por tipo">
+      <button type="button" data-tipo="" aria-pressed="true">Todo</button>
+      <button type="button" data-tipo="gasto" aria-pressed="false">Gastos</button>
+      <button type="button" data-tipo="ingreso" aria-pressed="false">Ingresos</button>
+      <button type="button" data-tipo="ahorro" aria-pressed="false">Ahorros</button>
+      <button type="button" id="quitar-cat" hidden></button>
+    </div>
+    <section data-vista="movimientos" class="tarjeta" aria-labelledby="t-hist">
+      <div class="cab">
+        <h2 id="t-hist">Movimientos</h2><span id="conteo" class="conteo"></span>
+        <button id="csv" class="btn sec">CSV</button><button id="pdf" class="btn sec">PDF</button><button id="fijos" class="btn sec">Copiar fijos</button><button id="importar" class="btn sec">Importar CSV</button><input type="file" id="archivo-csv" accept=".csv,text/csv" hidden>
+      </div>
+      <ul id="lista" class="lista"></ul>
+      <div id="vacio" class="vacio" hidden>
+        <p>Nada por aquí todavía.</p>
+        <button id="vacio-btn" class="btn">Registrar un movimiento</button>
+      </div>
+      <div id="error-lista" class="vacio" hidden>
+        <p>No pudimos cargar tus movimientos.</p>
+        <button id="reintentar" class="btn">Reintentar</button>
+      </div>
+      <button id="mas" class="btn sec ancho" hidden>Ver más movimientos</button>
+    </section>
+    <section data-vista="inicio" class="tarjeta" aria-labelledby="t-disp">
+      <h2 id="t-disp">Dinero disponible para gastar</h2>
+      <output id="disp-monto" class="disp-monto" aria-live="polite">S/ 0.00</output>
+      <ul id="disp-desglose" class="desglose"></ul>
+      <label>¿Y si compro algo? Precio (S/) <input id="compra" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Ej.: 1500"></label>
+      <label>Categoría de la compra (opcional) <select id="compra-cat"></select></label>
+      <p id="disp-msg" role="status"></p>
+      <small class="nota">Es una estimación basada en lo que registraste; no garantiza tu disponibilidad futura.</small>
+    </section>
+    <section data-vista="inicio" class="tarjeta" aria-labelledby="t-asist">
+      <h2 id="t-asist">Asistente financiero</h2>
+      <ul id="asistente" class="asistente"></ul>
+      <p id="asistente-vacio" class="nota">Sin observaciones por ahora. Al registrar más movimientos, el asistente podrá comparar y avisarte.</p>
+      <small class="nota">Son reglas sencillas sobre lo que registraste, no predicciones garantizadas. No se envía nada a servicios externos.</small>
+    </section>
+    <section data-vista="inicio" class="tarjeta" aria-labelledby="t-proy">
+      <h2 id="t-proy">Proyección de tu saldo</h2>
+      <label>Horizonte <select id="proy-dias"><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option></select></label>
+      <p id="proy-txt" role="status"></p>
+      <div class="lienzo corto"><canvas id="g-proy" role="img" aria-label="Proyección del saldo"></canvas></div>
+      <small class="nota">Considera tus pagos programados y cuotas, y tu gasto habitual de los últimos 30 días. No incluye ingresos futuros.</small>
+    </section>
+    <section data-vista="presupuestos" class="tarjeta" aria-labelledby="t-pres">
+      <h2 id="t-pres">Presupuestos y metas</h2>
+      <ul id="pres" class="pres"></ul>
+      <button id="pres-nuevo" class="btn sec ancho">Agregar presupuesto o meta</button>
+      <button id="pres-avisos" class="btn sec ancho">Configurar avisos de presupuesto</button>
+    </section>
+    <section data-vista="presupuestos" class="tarjeta" aria-labelledby="t-cats">
+      <h2 id="t-cats">Mis categorías</h2>
+      <p class="nota">Las categorías que crees aparecen al registrar movimientos y al crear presupuestos.</p>
+      <ul id="cats-propias" class="desglose"></ul>
+      <button id="cat-nueva" class="btn sec ancho">Nueva categoría</button>
+    </section>
+    <section data-vista="metas" class="tarjeta" aria-labelledby="t-metas">
+      <h2 id="t-metas">Metas de ahorro</h2>
+      <ul id="metas" class="pres"></ul>
+      <button id="meta-nueva" class="btn sec ancho">Nueva meta</button>
+    </section>
+    <section data-vista="pagos" class="tarjeta" aria-labelledby="t-pagos">
+      <h2 id="t-pagos">Pagos programados</h2>
+      <p id="pagos-vacio" class="nota">Registra tus suscripciones, servicios y cuotas para que se reserven en tu dinero disponible.</p>
+      <ul id="pagos" class="pres"></ul>
+      <button id="pago-nuevo" class="btn sec ancho">Nuevo pago programado</button>
+      <button id="avisos-pagos" class="btn sec ancho" hidden>Activar avisos de vencimientos en este dispositivo</button>
+      <small class="nota">Un pago no cuenta como gasto hasta que lo marcas como pagado.</small>
+    </section>
+    <section data-vista="cuentas" class="tarjeta" aria-labelledby="t-cuentas">
+      <h2 id="t-cuentas">Cuentas y billeteras</h2>
+      <p id="cuentas-total" class="nota"></p>
+      <ul id="cuentas" class="pres"></ul>
+      <h3 class="sub" hidden>Últimas transferencias</h3>
+      <ul id="transf" class="desglose"></ul>
+      <div class="acciones-meta">
+        <button id="cuenta-nueva" class="chip">Nueva cuenta</button>
+        <button id="transferir" class="chip">Transferir</button>
+        <button id="cuentas-auto" class="chip">Crear desde mis métodos de pago</button>
+      </div>
+    </section>
+    <section data-vista="deudas" class="tarjeta" aria-labelledby="t-deudas">
+      <h2 id="t-deudas">Deudas y cuotas</h2>
+      <ul id="deudas" class="pres"></ul>
+      <button id="deuda-nueva" class="btn sec ancho">Nueva deuda</button>
+    </section>
+    <section data-vista="informes" class="tarjeta" aria-labelledby="t-cat">
+      <h2 id="t-cat">En qué gastas</h2>
+      <div class="lienzo"><canvas id="g-cat" role="img" aria-label="Gastos por categoría"></canvas>
+        <p id="g-cat-vacio" class="vacio-txt" hidden>Sin gastos este mes.</p></div>
+    </section>
+    <section data-vista="informes" class="tarjeta" aria-labelledby="t-flujo">
+      <h2 id="t-flujo">Cómo se mueve tu plata</h2>
+      <div class="lienzo corto"><canvas id="g-flujo" role="img" aria-label="Ingresos, gastos y ahorros"></canvas></div>
+    </section>
+    <section data-vista="informes" class="tarjeta" aria-labelledby="t-tend">
+      <h2 id="t-tend">Últimos 6 meses</h2>
+      <p id="tend-txt" class="tend-txt"></p>
+      <div class="lienzo corto"><canvas id="g-tend" role="img" aria-label="Evolución de ingresos y gastos"></canvas></div>
+    </section>
+    <section data-vista="informes" class="tarjeta" aria-labelledby="t-comp">
+      <h2 id="t-comp">Comparado con el periodo anterior</h2>
+      <p id="comparacion-vacio" class="nota">Aún no hay gastos para comparar.</p>
+      <ul id="comparacion" class="desglose"></ul>
+    </section>
+    <section data-vista="config" class="tarjeta" aria-labelledby="t-conf">
+      <h2 id="t-conf">Configuración y copias de seguridad</h2>
+      <label class="check"><input type="checkbox" id="pref-privado"> Ocultar cantidades en pantalla</label>
+      <label class="check"><input type="checkbox" id="pref-compacto"> Diseño compacto</label>
+      <label class="check"><input type="checkbox" id="pref-grande"> Texto grande</label>
+      <div class="acciones-meta">
+        <button id="alertas-conf" class="chip">Configurar alertas</button>
+        <button id="respaldo-bajar" class="chip">Descargar copia de seguridad</button>
+        <button id="respaldo-subir" class="chip">Restaurar copia</button>
+        <input type="file" id="archivo-respaldo" accept=".json,application/json" hidden>
+      </div>
+    </section>
+    </main>
+  </div>
+</div>
+
+<div id="fab-menu" class="fab-menu" hidden>
+  <button data-rapida="gasto">➖ Añadir gasto</button>
+  <button data-rapida="ingreso">➕ Añadir ingreso</button>
+  <button data-rapida="transferir">🔁 Transferir dinero</button>
+  <button data-rapida="ahorro">🐷 Registrar ahorro</button>
+</div>
+<button id="fab" class="fab" aria-label="Acciones rápidas" aria-haspopup="menu" aria-expanded="false" hidden>+</button>
+
+<dialog id="dlg" aria-labelledby="dlg-titulo">
+  <form id="form" novalidate>
+    <h2 id="dlg-titulo">Nuevo movimiento</h2>
+    <label>Escríbelo rápido <input id="rapido" placeholder="Ej.: almuerzo 12 yape" autocomplete="off" maxlength="80"></label>
+    <fieldset class="tipos"><legend>Tipo</legend>
+      <label class="seg"><input type="radio" name="tipo" value="gasto" checked><span>Gasto</span></label>
+      <label class="seg"><input type="radio" name="tipo" value="ingreso"><span>Ingreso</span></label>
+      <label class="seg"><input type="radio" name="tipo" value="ahorro"><span>Ahorro</span></label>
+    </fieldset>
+    <label>Monto (S/) <input id="monto" name="monto" type="number" inputmode="decimal" step="0.01" min="0.01" max="1000000000" required></label>
+    <div class="campo">
+      <span class="rot" id="cat-rot">Categoría</span>
+      <div id="rapidas" class="rapidas" role="group" aria-label="Categorías frecuentes"></div>
+      <button type="button" class="disparador" id="cat-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="cat-rot cat-btn">Elige una categoría</button>
+      <div class="panel" id="cat-panel"><div><div class="opciones" id="cat-ops" role="listbox" aria-labelledby="cat-rot"></div></div></div>
+      <input id="cat-otra" class="otra" maxlength="50" placeholder="Escribe el nombre" aria-label="Categoría, otra" autocomplete="off" hidden>
+      <input type="hidden" id="categoria" name="categoria">
+    </div>
+    <div class="campo">
+      <span class="rot" id="met-rot">Método de pago</span>
+      <button type="button" class="disparador" id="met-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="met-rot met-btn">Elige un método de pago</button>
+      <div class="panel" id="met-panel"><div><div class="opciones" id="met-ops" role="listbox" aria-labelledby="met-rot"></div></div></div>
+      <input id="met-otra" class="otra" maxlength="40" placeholder="Escribe el nombre" aria-label="Método de pago, otra" autocomplete="off" hidden>
+      <input type="hidden" id="metodo_pago" name="metodo_pago">
+    </div>
+    <label>Fecha <input id="fecha" name="fecha" type="date" min="2000-01-01" max="2100-12-31" required></label>
+    <div class="rapidas" id="fechas-rap"><button type="button" class="chip" data-d="0">Hoy</button><button type="button" class="chip" data-d="-1">Ayer</button></div>
+    <label>Cuenta <select id="cuenta" name="cuenta"></select></label>
+    <label>Hora (opcional) <input id="hora" name="hora" type="time"></label>
+    <label>Subcategoría (opcional) <input id="subcategoria" name="subcategoria" maxlength="50"></label>
+    <label>Etiquetas (separadas por comas) <input id="etiquetas" name="etiquetas" maxlength="200" placeholder="viaje, trabajo"></label>
+    <label>Notas (opcional) <textarea id="notas" name="notas" maxlength="500" rows="2"></textarea></label>
+    <label>Descripción (opcional) <input id="descripcion" name="descripcion" maxlength="200"></label>
+    <label class="check"><input type="checkbox" name="es_recurrente"> Gasto fijo (puedes copiarlo al mes siguiente)</label>
+    <p id="form-err" class="error" role="alert"></p>
+    <div class="acciones">
+      <button type="button" id="cancelar" class="btn sec">Cancelar</button>
+      <button type="submit" id="otro" class="btn sec">Guardar y agregar otro</button>
+      <button type="submit" id="guardar" class="btn">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-pres" aria-labelledby="pres-t">
+  <form id="form-pres" novalidate>
+    <h2 id="pres-t">Presupuesto o meta</h2>
+    <label>Categoría <select id="pres-cat"></select></label>
+    <label>Tope mensual o meta (S/) <input id="pres-limite" type="number" step="0.01" min="0.01" inputmode="decimal"></label>
+    <label class="check"><input type="checkbox" id="pres-esencial"> Es una necesidad esencial (se descuenta de lo que puedes gastar)</label>
+    <p id="pres-err" class="error" role="alert"></p>
+    <div class="acciones">
+      <button type="button" id="pres-cancelar" class="btn sec">Cancelar</button>
+      <button type="submit" class="btn">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-f2" aria-labelledby="f2-t">
+  <form id="form-f2" novalidate>
+    <h2 id="f2-t"></h2>
+    <div id="f2-campos" class="campos"></div>
+    <p id="f2-err" class="error" role="alert"></p>
+    <div class="acciones">
+      <button type="button" id="f2-cancelar" class="btn sec">Cancelar</button>
+      <button type="submit" class="btn">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>

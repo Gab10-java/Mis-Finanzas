@@ -1,0 +1,12 @@
+{
+  "name": "billetera-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "humo": "node humo-jsdom.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "jsdom": "^30.1.3"
+  }
+}

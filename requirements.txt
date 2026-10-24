@@ -1,0 +1,11 @@
+fastapi==0.143.3
+uvicorn==0.54.0
+motor==3.7.1
+pymongo==4.19.0
+pydantic==2.14.1
+pydantic-settings==2.16.0      # NUEVA: configuración tipada desde .env
+gspread==6.2.1
+google-auth==2.62.0
+requests>=2.33
+CacheControl==0.14.4           # NUEVA: caché de los certificados públicos de Google
+fpdf2==2.8.9          # NUEVA: PDF generado en el servidor
