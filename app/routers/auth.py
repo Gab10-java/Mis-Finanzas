@@ -1,82 +1,87 @@
-import os
+"""Sesión propia: se verifica a Google UNA vez y se entrega una cookie httpOnly de 30 días.
+
+Además, la primera vez que entra un usuario, en segundo plano se copia tu hoja plantilla de Google Sheets y se comparte con él
+(solo si TEMPLATE_SHEET_ID y el archivo de credenciales están configurados).
+"""
+import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, BackgroundTasks
-from pydantic import BaseModel, Field
-
-# Librerías necesarias para el clonado de Google Sheets/Drive
 import gspread
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from google.oauth2.service_account import Credentials
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel, Field
+from pymongo.errors import DuplicateKeyError, PyMongoError
+from starlette.concurrency import run_in_threadpool
 
 from ..config import Settings, get_settings
+from ..database import get_db
 from ..security import COOKIE, CurrentUser, crear_sesion, datos_de_sesion, google_info
 
 router = APIRouter(prefix="/api/auth", tags=["Sesión"])
 log = logging.getLogger(__name__)
 
+SCOPES_COPIA = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]   # copiar una hoja exige el permiso de Drive
+ESPERA_CLONADO = timedelta(minutes=10)   # si una clonación quedó a medias, se permite reintentar pasado este tiempo
+
+
 class LoginGoogle(BaseModel):
     credential: str = Field(min_length=20, max_length=4096)
 
 
-def clonar_y_compartir_hoja(email_usuario: str, db):
-    """Tarea en segundo plano para clonar la plantilla en Google Drive."""
-    template_id = os.getenv("TEMPLATE_SHEET_ID")
-    cred_file = os.getenv("GOOGLE_CREDENTIALS_FILE", "credenciales.json")
-    
-    if not template_id or not os.path.exists(cred_file):
-        log.error("Faltan variables TEMPLATE_SHEET_ID o credenciales.json para clonar.")
-        return
+def _clonar_sync(email: str, settings: Settings) -> str:
+    """Parte BLOQUEANTE (gspread usa la red): se ejecuta siempre en un hilo, nunca en el bucle del servidor."""
+    credenciales = Credentials.from_service_account_file(str(settings.credentials_path), scopes=SCOPES_COPIA)
+    nueva = gspread.authorize(credenciales).copy(settings.template_sheet_id, title=f"Control Financiero - {email}")
+    nueva.share(email, perm_type="user", role="writer")
+    return nueva.id
 
-    # IMPORTANTE: Se necesita el scope de Drive para poder hacer copias
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    
-    try:
-        creds = Credentials.from_service_account_file(cred_file, scopes=scopes)
-        gc = gspread.authorize(creds)
-        
-        # 1. Copiar la plantilla
-        log.info(f"Clonando plantilla para {email_usuario}...")
-        nueva_hoja = gc.copy(template_id, title=f"Control Financiero - {email_usuario}")
-        
-        # 2. Compartir el nuevo archivo con el usuario que acaba de entrar
-        log.info(f"Compartiendo archivo con {email_usuario}...")
-        nueva_hoja.share(email_usuario, perm_type='user', role='writer')
-        
-        # 3. Guardar el ID de la nueva hoja en la colección de usuarios
-        db.usuarios.update_one(
-            {"email": email_usuario},
-            {"$set": {"sheet_id": nueva_hoja.id, "email": email_usuario}},
-            upsert=True # Si el documento del usuario no existe, lo crea
-        )
-        log.info(f"¡Éxito! Hoja clonada para {email_usuario} (ID: {nueva_hoja.id})")
-        
-    except Exception as e:
-        log.error(f"Error al clonar hoja para {email_usuario}: {e}")
+
+async def clonar_y_compartir_hoja(email: str, db: AsyncIOMotorDatabase, settings: Settings) -> None:
+    """Tarea en segundo plano: copia la plantilla, la comparte con el usuario y guarda su sheet_id."""
+    if not settings.template_sheet_id or not settings.credentials_path.is_file():
+        log.warning("No se clona la hoja de %s: falta TEMPLATE_SHEET_ID o el archivo de credenciales", email)
+        return
+    ahora = datetime.now(timezone.utc).replace(tzinfo=None)      # Mongo guarda las fechas en UTC sin zona
+    try:   # 1) Reservar: aunque el usuario entre varias veces seguidas, solo UNA tarea clona (índice único en usuarios.email)
+        await db.usuarios.update_one(
+            {"email": email, "sheet_id": {"$exists": False},
+             "$or": [{"clonando_desde": {"$exists": False}}, {"clonando_desde": {"$lt": ahora - ESPERA_CLONADO}}]},
+            {"$set": {"email": email, "clonando_desde": ahora}}, upsert=True)
+    except DuplicateKeyError:
+        return                        # ya tiene hoja, o hay otra tarea clonando
+    except PyMongoError:
+        log.exception("No se pudo reservar la clonación de la hoja de %s", email)
+        return
+    try:   # 2) Clonar y guardar el id
+        sheet_id = await asyncio.to_thread(_clonar_sync, email, settings)
+        await db.usuarios.update_one({"email": email}, {"$set": {"sheet_id": sheet_id}, "$unset": {"clonando_desde": ""}})
+        log.info("Hoja clonada para %s (ID: %s)", email, sheet_id)
+    except Exception:
+        log.exception("Error al clonar la hoja de %s", email)
+        try:   # se libera la reserva para reintentar en el próximo inicio de sesión
+            await db.usuarios.update_one({"email": email}, {"$unset": {"clonando_desde": ""}})
+        except PyMongoError:
+            pass
 
 
 @router.post("/google", summary="Cambiar el token de Google por una sesión de 30 días")
-def iniciar_sesion(
-    datos: LoginGoogle, 
-    respuesta: Response, 
-    request: Request,
-    background_tasks: BackgroundTasks,
-    settings: Annotated[Settings, Depends(get_settings)]
+async def iniciar_sesion(
+    datos: LoginGoogle, respuesta: Response, tareas: BackgroundTasks,
+    settings: Annotated[Settings, Depends(get_settings)], db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
 ):
-    info = google_info(datos.credential, settings)
+    info = await run_in_threadpool(google_info, datos.credential, settings)   # validar el token usa la red: va en un hilo
     email, nombre = info["email"], (info.get("given_name") or info.get("name") or "")[:60]
-    
-    # === VERIFICACIÓN Y CLONACIÓN MULTIUSUARIO ===
-    db = request.app.state.db
-    usuario_db = db.usuarios.find_one({"email": email})
-    
-    # Si el usuario no existe en la BD o aún no tiene su propia hoja asignada:
-    if not usuario_db or not usuario_db.get("sheet_id"):
-        background_tasks.add_task(clonar_y_compartir_hoja, email, db)
-    # =============================================
+
+    # Un fallo al consultar o clonar la hoja NUNCA debe impedir el inicio de sesión
+    try:
+        usuario = await db.usuarios.find_one({"email": email}, {"sheet_id": 1})
+        if settings.template_sheet_id and not (usuario and usuario.get("sheet_id")):
+            tareas.add_task(clonar_y_compartir_hoja, email, db, settings)
+    except PyMongoError:
+        log.warning("No se pudo consultar la hoja de %s; el inicio de sesión continúa", email, exc_info=True)
 
     respuesta.set_cookie(
         COOKIE, crear_sesion(email, settings, nombre), max_age=settings.session_days * 86400,
