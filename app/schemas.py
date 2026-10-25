@@ -1,3 +1,4 @@
+"""Modelos de entrada (lo que se acepta) y de salida (lo que se devuelve)."""
 from datetime import date
 from typing import Annotated, Literal
 

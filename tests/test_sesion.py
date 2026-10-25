@@ -5,7 +5,7 @@ from mongomock_motor import AsyncMongoMockClient
 
 from app import security
 from app.config import Settings, get_settings
-from app.database import get_transacciones
+from app.database import get_db, get_transacciones
 from app.main import create_app
 from tests.conftest import SheetsFalso, movimiento
 
@@ -14,10 +14,12 @@ CABECERA = {"X-Requested-With": "fetch"}
 
 def hacer_app():
     settings = Settings(_env_file=None, mongo_url="mongodb://x", google_client_id="cid", session_secret="clave-de-prueba")
-    col = AsyncMongoMockClient()["t"]["transacciones"]
+    db = AsyncMongoMockClient()["t"]
+    col = db["transacciones"]
     app = create_app()
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_transacciones] = lambda: col
+    app.dependency_overrides[get_db] = lambda: db
     app.state.sheets = SheetsFalso()
     return app
 

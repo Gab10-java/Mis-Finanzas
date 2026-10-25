@@ -1,3 +1,8 @@
+"""Configuración centralizada: TODAS las variables salen de .env / entorno.
+
+pydantic-settings valida los tipos al arrancar: si falta MONGO_URL o GOOGLE_CLIENT_ID
+la app se detiene con un mensaje claro, en vez de conectarse a "localhost" por error.
+"""
 import secrets
 from functools import lru_cache
 from pathlib import Path
@@ -26,6 +31,7 @@ class Settings(BaseSettings):
     allowed_emails: str = ""
     sheets_sync_email: str = ""
     sheet_id: str = ""
+    template_sheet_id: str = ""   # hoja PLANTILLA que se copia para cada usuario nuevo (opcional)
     google_credentials_file: str = "credenciales.json"
     cors_origins: str = ""
 

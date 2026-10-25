@@ -1,3 +1,4 @@
+"""Endpoints HTTP de transacciones. Solo traduce HTTP <-> repositorio: sin consultas aquí."""
 from datetime import date, timedelta
 from typing import Annotated, Literal
 

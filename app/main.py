@@ -1,3 +1,4 @@
+"""Punto de entrada. Ejecutar con:  uvicorn app.main:app --reload"""
 import logging
 from contextlib import asynccontextmanager
 
@@ -37,6 +38,10 @@ async def lifespan(app: FastAPI):
     await app.state.db.cuentas.create_index([("usuario_id", 1), ("nombre", 1)], unique=True, name="usuario_nombre")
     await app.state.db.metas.create_index([("usuario_id", 1)], name="usuario")
     await app.state.db.transferencias.create_index([("usuario_id", 1), ("fecha", -1)], name="usuario_fecha")
+    try:   # un usuario = un documento (evita clonar varias hojas para la misma persona)
+        await app.state.db.usuarios.create_index("email", unique=True, name="email")
+    except PyMongoError:
+        log.warning("No se pudo crear el índice único de usuarios.email (¿hay correos repetidos?)", exc_info=True)
     app.state.presupuestos = cliente[settings.mongo_db]["presupuestos"]
     await app.state.presupuestos.create_index([("usuario_id", 1), ("categoria", 1)], unique=True, name="usuario_categoria")
     app.state.sheets = SheetsSync(settings, coleccion)

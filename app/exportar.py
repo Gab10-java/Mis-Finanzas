@@ -1,3 +1,4 @@
+"""Formato tabular compartido por el CSV descargable y por la hoja de Google Sheets."""
 import csv
 import io
 

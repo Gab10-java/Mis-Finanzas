@@ -1,3 +1,4 @@
+"""Presupuestos (tope mensual por categoría de gasto) y metas (objetivo por categoría de ahorro)."""
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Response
