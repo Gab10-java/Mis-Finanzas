@@ -47,6 +47,8 @@ async def lifespan(app: FastAPI):
     app.state.sheets = SheetsSync(settings, coleccion)
     if "session_secret" not in settings.model_fields_set:
         log.warning("SESSION_SECRET no está definido: las sesiones se cerrarán cada vez que reinicies el servidor.")
+    clon_ok = bool(settings.template_sheet_id) and settings.credentials_path.is_file()
+    log.info("Clonado de hojas por usuario: %s", "ON" if clon_ok else "OFF (falta TEMPLATE_SHEET_ID o el archivo de credenciales)")
     log.info("API lista. BD=%s | Sheets=%s", settings.mongo_db, "ON" if app.state.sheets._activo else "OFF")
     yield
     cliente.close()

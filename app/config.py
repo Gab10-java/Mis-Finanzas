@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     sheets_sync_email: str = ""
     sheet_id: str = ""
     template_sheet_id: str = ""   # hoja PLANTILLA que se copia para cada usuario nuevo (opcional)
+    clone_folder_id: str = ""     # opcional: carpeta (de una unidad compartida) donde se guardan las copias
     google_credentials_file: str = "credenciales.json"
     cors_origins: str = ""
 
